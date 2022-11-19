@@ -71,7 +71,7 @@ pair<string, double> bruteforce_edited(const size_t passlength, const string& ha
 	std::string answer;
 	double t1 = omp_get_wtime();
 	std::mutex mu;
-	omp_set_num_threads(12);
+	omp_set_num_threads(6);
 	#pragma omp parallel shared(hash, passlength, alphabet)
 	{
 		int block = alphabet.length() / omp_get_num_threads();
@@ -82,7 +82,7 @@ pair<string, double> bruteforce_edited(const size_t passlength, const string& ha
 }
 
 pair<string, double> bruteforce(const size_t passlength, const string& hash, const string& alphabet) {
-	static bool exit = false;
+	bool exit = false;
 	digestpp::sha3 hasher(256);
 	string text(passlength, alphabet[0]);
 	int k = 0;
@@ -91,12 +91,12 @@ pair<string, double> bruteforce(const size_t passlength, const string& hash, con
 	std::string hex;
 	std::string answer;
 	double t1 = omp_get_wtime();
-	omp_set_num_threads(12);
+	omp_set_num_threads(6);
 	#pragma omp parallel for shared(text, hash, hasher, passlength, alphabet, exit, answer) private(k, i, hex)
 	for (k = 0; k < 1000000; ++k) {
-		hasher.absorb(text);
 		#pragma omp critical
 		{
+			hasher.absorb(text);
 			hex = hasher.hexdigest();
 			if (hex == hash) {
 				answer = text;
@@ -109,7 +109,7 @@ pair<string, double> bruteforce(const size_t passlength, const string& hash, con
 		hasher.reset();
 		auto res = increment_str(text, alphabet);
 		if (res == false) {
-			exit = true;
+			//exit = true;
 			break;
 		}
 	}
@@ -158,23 +158,33 @@ void logCalculation(string& str, string& hash, pair<string, double> bruteforceRe
 
 int main() {
 	srand(time(0));
-	auto hashVector = readHash("hash.txt");
+	/*auto hashVector = readHash("hash.txt");
 	for (auto hash : hashVector) {
 		auto result = bruteforce_edited(4, hash, "abcdefghijklmnopqrstuvwxyz0987654321");
 		std::cout << ANSWER << ' ' << result.second << '\n';
 		result = bruteforce(4, hash, "abcdefghijklmnopqrstuvwxyz0987654321");
 		std::cout << result.first << ' ' << result.second << '\n';
 		writeHashWithResult("result.txt", hash, result.first);
-	}
-	/*
+	}*/
 	long double averageTime = 0;
+	std::vector<string> testStrings;
 	for (size_t i = 0; i < 5; ++i) {
-		string str = getRandomString(5);
-		auto hash = getHash(str);
-		auto result = bruteforce(5, hash, "abcdefghijklmnopqrstuvwxyz0987654321");
-		logCalculation(str, hash, result);
+		testStrings.push_back(getRandomString(4));
+		auto hash = getHash(testStrings[i]);
+		auto result = bruteforce(4, hash, "abcdefghijklmnopqrstuvwxyz0987654321");
+		std::cout << result.first << ' ' << result.second << '\n';
+		logCalculation(testStrings[i], hash, result);
 		averageTime += result.second;
 	}
-	std::cout << "AVERAGE DURATION WITH LENGTH 1: " << averageTime / 20 << std::endl;
-	*/
+	std::cout << "AVERAGE DURATION WITH LENGTH 4: " << averageTime / 5 << std::endl;
+	averageTime = 0;
+	for (size_t i = 0; i < 5; ++i) {
+		auto hash = getHash(testStrings[i]);
+		auto result = bruteforce_edited(4, hash, "abcdefghijklmnopqrstuvwxyz0987654321");
+		EXIT = false;
+		std::cout << ANSWER << ' ' << result.second << '\n';
+		logCalculation(testStrings[i], hash, std::pair<string, double>(ANSWER, result.second));
+		averageTime += result.second;
+	}
+	std::cout << "AVERAGE DURATION WITH LENGTH 4: " << averageTime / 5 << std::endl;
 }
