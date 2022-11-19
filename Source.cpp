@@ -71,7 +71,7 @@ pair<string, double> bruteforce_edited(const size_t passlength, const string& ha
 	std::string answer;
 	double t1 = omp_get_wtime();
 	std::mutex mu;
-	omp_set_num_threads(6);
+	omp_set_num_threads(12);
 	#pragma omp parallel shared(hash, passlength, alphabet)
 	{
 		int block = alphabet.length() / omp_get_num_threads();
@@ -83,31 +83,35 @@ pair<string, double> bruteforce_edited(const size_t passlength, const string& ha
 
 pair<string, double> bruteforce(const size_t passlength, const string& hash, const string& alphabet) {
 	bool exit = false;
-	digestpp::sha3 hasher(256);
-	string text(passlength, alphabet[0]);
-	int k = 0;
+	digestpp::sha3 hasher(256); // Инициализация класса для выполнения хэширования
+	string text(passlength, alphabet[0]); //Создание начальной предполагаемой строки
+	int k = 0, k_max = 1;
 	size_t i = 0;
 	int completed = 0;
 	std::string hex;
 	std::string answer;
+	for (int j = 0; j < passlength; ++j) {
+		k_max *= alphabet.length();
+	}
+	omp_set_num_threads(12);
 	double t1 = omp_get_wtime();
-	omp_set_num_threads(6);
-	#pragma omp parallel for shared(text, hash, hasher, passlength, alphabet, exit, answer) private(k, i, hex)
-	for (k = 0; k < 1000000; ++k) {
+	#pragma omp parallel for shared(text, hash, hasher, passlength, alphabet, exit, answer, k_max) private(k, i, hex)
+	for (k = 0; k < k_max; ++k) {
 		#pragma omp critical
 		{
-			hasher.absorb(text);
-			hex = hasher.hexdigest();
+			hasher.absorb(text); // Вычисление хэша
+			hex = hasher.hexdigest();	//Приведение хэша к типу std::string
 			if (hex == hash) {
+				ANSWER = text;
 				answer = text;
 				exit = true;
 			}
+			hasher.reset(); // Сброс хэша
 		}
 		if (exit) {
 			break;
 		}
-		hasher.reset();
-		auto res = increment_str(text, alphabet);
+		auto res = increment_str(text, alphabet); //Увеличение строки на 1 (примерно как операция инкремента для числа с системой счисления alphabet.length())
 		if (res == false) {
 			//exit = true;
 			break;
@@ -172,7 +176,7 @@ int main() {
 		testStrings.push_back(getRandomString(4));
 		auto hash = getHash(testStrings[i]);
 		auto result = bruteforce(4, hash, "abcdefghijklmnopqrstuvwxyz0987654321");
-		std::cout << result.first << ' ' << result.second << '\n';
+		std::cout << ANSWER << ' ' << result.second << '\n';
 		logCalculation(testStrings[i], hash, result);
 		averageTime += result.second;
 	}
